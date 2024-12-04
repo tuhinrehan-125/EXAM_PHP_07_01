@@ -1,43 +1,33 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="container mt-5">
-    <h1 class="mb-4">My Colleagues</h1>
+    <div class="container mt-5">
+        <h1>My Colleagues</h1>
 
-    <!-- Save Colleague Form -->
-    <form id="save-colleague-form" class="mb-5 p-4 border rounded bg-light shadow">
-        @csrf
-        <div id="colleagues-container">
-            <div class="colleague-section row mb-3">
-                <div class="col-md-6 mb-3">
-                    <label for="name" class="form-label">Name:</label>
-                    <input type="text" name="name" class="form-control" required>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label for="email" class="form-label">Email:</label>
-                    <input type="email" name="email" class="form-control" required>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label for="phone" class="form-label">Phone:</label>
-                    <input type="text" name="phone" class="form-control" required>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label for="position" class="form-label">Position:</label>
-                    <input type="text" name="position" class="form-control" required>
-                </div>
-                <div class="col-md-12">
-                    <label for="pdf_file" class="form-label">PDF File:</label>
-                    <input type="file" name="pdf_file" class="form-control" accept="application/pdf">
+        <form id="save-colleague-form" action="{{ route('colleagues.store') }}" method="POST" enctype="multipart/form-data">
+            @csrf
+            <div id="colleagues-container">
+                <div class="colleague-section mb-3 p-3 border rounded bg-light">
+                    <label>Name:</label>
+                    <input type="text" name="colleagues[][name]" class="form-control mb-2" required>
+                    
+                    <label>Email:</label>
+                    <input type="email" name="colleagues[][email]" class="form-control mb-2" required>
+                    <label>Phone:</label>
+                    <input type="text" name="colleagues[][phone]" class="form-control mb-2" required>           
+                    <label>Position:</label>
+                    <input type="text" name="colleagues[][position]" class="form-control mb-2" required>
+                    <label>PDF File:</label>
+                    <input type="file" name="colleagues[][pdf_file]" accept="application/pdf" class="form-control mb-2">
+                    <button type="button" class="btn btn-danger remove-colleague">Remove</button>
                 </div>
             </div>
-        </div>
-        <button type="submit" class="btn btn-primary">Save</button>
-    </form>
+            <button type="button" id="add-colleague" class="btn btn-primary mb-3">Add</button>
+            <button type="submit" class="btn btn-success">Save</button>
+        </form>
 
-    <!-- Colleagues Table -->
-    <div class="table-responsive">
-        <table id="colleagues-table" class="table table-bordered table-striped">
-            <thead class="table-dark">
+        <table id="colleagues-table" class="table table-striped table-bordered mt-4">
+            <thead>
                 <tr>
                     <th>Name</th>
                     <th>Email</th>
@@ -47,48 +37,93 @@
                 </tr>
             </thead>
             <tbody>
-                <!-- Data will be loaded via AJAX -->
+                <!-- Data will be populated by AJAX -->
             </tbody>
         </table>
     </div>
-</div>
 @endsection
 
+@section('scripts')
+    <script>
+        document.getElementById('add-colleague').addEventListener('click', function() {
+            const colleagueContainer = document.getElementById('colleagues-container');
+            const newColleagueSection = document.createElement('div');
+            newColleagueSection.classList.add('colleague-section', 'mb-3', 'p-3', 'border', 'rounded', 'bg-light');
+            newColleagueSection.innerHTML = `
+                <label>Name:</label>
+                <input type="text" name="colleagues[][name]" class="form-control mb-2" required>
+                <label>Email:</label>
+                <input type="email" name="colleagues[][email]" class="form-control mb-2" required>
+                <label>Phone:</label>
+                <input type="text" name="colleagues[][phone]" class="form-control mb-2" required>
+                <label>Position:</label>
+                <input type="text" name="colleagues[][position]" class="form-control mb-2" required>
+                <label>PDF File:</label>
+                <input type="file" name="colleagues[][pdf_file]" accept="application/pdf" class="form-control mb-2">
+                <button type="button" class="btn btn-danger remove-colleague">Remove</button>
+            `;
+            colleagueContainer.appendChild(newColleagueSection);
+
+            // Add event listener for the "Remove" button
+            newColleagueSection.querySelector('.remove-colleague').addEventListener('click', function() {
+                newColleagueSection.remove();
+            });
+        });
+    </script>
+@endsection
 
 @push('scripts')
-<!-- <script>
+<script>
     $(document).ready(function() {
-        // Initialize DataTable
-        $('#colleagues-table').DataTable({
-            processing: true,
-            serverSide: true,
-            ajax: '/colleagues',
-            columns: [
-                { data: 'name', name: 'name' },
-                { data: 'email', name: 'email' },
-                { data: 'phone', name: 'phone' },
-                { data: 'position', name: 'position' },
-                { data: 'actions', name: 'actions', orderable: false, searchable: false }
-            ]
+        // Ensure the CSRF token is sent with every AJAX request
+        $.ajaxSetup({
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            }
         });
 
-        // Save Colleague
-        $('#save-colleague-form').submit(function(e) {
-            e.preventDefault();
-            $.ajax({
-                url: '/colleagues',
-                method: 'POST',
-                data: new FormData(this),
-                contentType: false,
-                processData: false,
-                success: function(response) {
-                    alert(response.message);
-                    $('#colleagues-table').DataTable().ajax.reload();
-                },
-                error: function(error) {
-                    console.error(error);
-                }
-            });
+        // Create an empty array to store the colleagues data
+        var colleaguesData = [];
+
+        // Loop through all colleague sections and collect the data
+        $('#colleagues-container .colleague-section').each(function() {
+            var colleague = {
+                name: $(this).find('[name*="name"]').val(),
+                email: $(this).find('[name*="email"]').val(),
+                phone: $(this).find('[name*="phone"]').val(),
+                position: $(this).find('[name*="position"]').val(),
+                pdf_file: $(this).find('[name*="pdf_file"]')[0].files[0]  // File input for PDF
+            };
+
+            // Add the colleague data to the colleaguesData array
+            colleaguesData.push(colleague);
+        });
+
+        // Now send the correctly structured data
+        var formData = new FormData();
+        formData.append('colleagues', JSON.stringify(colleaguesData));  // Append the array as a JSON string
+        formData.append('_token', $('meta[name="csrf-token"]').attr('content')); // CSRF token
+
+        $.ajax({
+            url: $(this).attr('action'),
+            method: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function (response) {
+                console.log('Success:', response);
+                alert(response.message);
+
+                // Clear the form fields after submission
+                $('#save-colleague-form')[0].reset();
+
+                // Refresh the DataTable to show the new data
+                $('#colleagues-table').DataTable().ajax.reload();
+            },
+            error: function (error) {
+                console.error('Error:', error);
+                alert('An error occurred. Please check the console for details.');
+            }
         });
 
         // Delete Colleague
@@ -102,11 +137,17 @@
                     },
                     success: function(response) {
                         alert(response.message);
-                        $('#colleagues-table').DataTable().ajax.reload();
+                        // Reload DataTable after deleting a colleague
+                        table.ajax.reload();
+                    },
+                    error: function(error) {
+                        console.error(error);
+                        alert('An error occurred. Please try again.');
                     }
                 });
             }
         };
     });
-</script> -->
+</script>
+
 @endpush

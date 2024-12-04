@@ -46,9 +46,12 @@
 
                 <!-- Page Content -->
                 <main>
-                    @yield('content') <!-- Correct Blade directive for content injection -->
+                    @yield('content') <!-- Content injected here -->
                 </main>
             </div>
         </div>
+
+        <!-- Scripts Section -->
+        @yield('scripts') <!-- Custom scripts from individual views will go here -->
     </body>
 </html>
